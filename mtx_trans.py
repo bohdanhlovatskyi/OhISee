@@ -48,6 +48,7 @@ if __name__ == "__main__":
     E, _ = cv2.findEssentialMat(pts1, pts2, K, cv2.FM_8POINT)
     print('E: fundamental matrix: \n', E)
 
+    # this can be done cia least squares as well
     H, _ = cv2.findHomography(pts1, pts2, RANSAC, 3)
     print('H: homography matrix: \n', H)
 
@@ -67,7 +68,7 @@ if __name__ == "__main__":
     print('E = t x R (up to some scale)')
     print(np.cross(t_x, R))
 
-    print('checkign epistolar constraint: ')
+    print('checkign epispolar constraint: ')
     for match in knn_matches:
         p1 = kp1[match.queryIdx].pt
         p2 = kp2[match.trainIdx].pt

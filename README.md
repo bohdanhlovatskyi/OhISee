@@ -20,3 +20,6 @@ Current result:
 
      - tool to parse dataset: https://github.com/utiasSTARS/pykitti
 
+
+- problem of pure rotation: if there is pure rotation, monocular SLAM could not be initialized 
+- RANSAC
