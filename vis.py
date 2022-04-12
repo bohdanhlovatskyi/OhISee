@@ -13,8 +13,12 @@ try:
         util.find_library = new_util_find_library
 except ImportError:
     pass
+
+import numpy as np
 import pygame
 from pygame.locals import *
+
+from scipy.spatial.transform import Rotation as R
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -28,6 +32,28 @@ verticies = (
 
 edges = ((0, 1), (1, 2), (2, 3), (3, 0))
 
+'''
+R: rotation matrix: 
+ [[ 9.89555140e-01  1.44154861e-01 -1.58426087e-06]
+ [-1.44154861e-01  9.89555140e-01  2.16215628e-05]
+ [ 4.68456688e-06 -2.11673497e-05  1.00000000e+00]]
+T: camera transformation: 
+ [[-0.97362598]
+ [-0.22814791]
+ [ 0.00099136]]
+'''
+
+T = np.array([[-0.97362598],
+ [-0.22814791],
+ [ 0.00099136]])
+
+Rr = np.array([[ 9.89555140e-01,  1.44154861e-01, -1.58426087e-06],
+ [-1.44154861e-01,  9.89555140e-01,  2.16215628e-05],
+ [ 4.68456688e-06, -2.11673497e-05,  1.00000000e+00]])
+
+r = R.from_matrix(Rr)
+Rr = r.as_quat()
+print(Rr)
 
 def Camera():
     glBegin(GL_LINES)
@@ -36,6 +62,11 @@ def Camera():
             glVertex3fv(verticies[vertex])
     glEnd()
 
+def Point(x, y, z):
+    glPointSize(4)
+    glBegin( GL_POINTS)
+    glVertex3fv((x,y,z))
+    glEnd()
 
 def main():
     pygame.init()
@@ -52,13 +83,15 @@ def main():
                 pygame.quit()
                 quit()
 
-        glTranslatef(-1,-1,-1)
-        glRotatef(1, 3, 1, 1)
-        glTranslatef(1,1,1)
+
+        glTranslatef(*[elm / 100 for elm in T])
+        glRotatef(*Rr)
         glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+        for i in range(100):
+            Point(i, i + 2*i, i - 2*i)
         Camera()
         pygame.display.flip()
-        pygame.time.wait(10)
+        pygame.time.wait(100)
 
 
 if __name__ == "__main__":
