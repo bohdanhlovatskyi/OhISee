@@ -1,8 +1,6 @@
 from turtle import pos
 import cv2
 import time
-import queue
-import threading
 import numpy as np
 
 from vis import Visualizer
@@ -144,7 +142,9 @@ class VO:
         self.e = Extractor(self.cm)
         self.vid = cv2.VideoCapture(video_path)
 
-    def run(self, pose_q, pts_q):
+    def run(self, vis):
+        poses = []
+        points = []
         while True:
             ret, frame = self.vid.read()
             if ret is None:
@@ -163,12 +163,16 @@ class VO:
                 cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
                 cv2.line(frame, p1, p2, color=(0, 0, 255))
 
-            pose_q.put(Rt)
+            poses.append(Rt)
             print("[LOG]: pos: ", Rt)
 
-            pts = self.e.get_points(mtchs, Rt)
-            pts_q.put(pts)
+            assert Rt.shape == (3, 4)
+            pts = self.e.get_points(mtchs, Rt).T
+
+            points.extend(pts)
             cv2.imshow('frame', frame)
+
+            vis.draw(poses, points)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
@@ -181,18 +185,9 @@ class SLAM:
         self.vis = Visualizer()
         self.poses = []
         self.ptsmap = []
-        self.pq = queue.Queue()
-        self.pts_q = queue.Queue()
     
     def run(self):
-
-        vis_thread = threading.Thread(target=self.vis.run, args=(self.pq, self.pts_q))
-        vis_thread.setDaemon(True)
-        vis_thread.start()
-        
-        # run visual odometry in the main thread, so not to
-        # get headache with passing cv2 image output bacck here
-        self.vo.run(self.pq, self.pts_q)
+        self.vo.run(self.vis)
 
 
 if __name__ == "__main__":

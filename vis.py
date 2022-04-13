@@ -18,7 +18,6 @@ except ImportError:
 import sys
 sys.path.append("./Pangolin/build")
 import time
-import queue
 import numpy as np
 import pypangolin as pango
 from OpenGL.GL import *
@@ -34,6 +33,8 @@ class Visualizer:
     def init(self):
         pango.CreateWindowAndBind("pySimpleDisplay", 640, 480)
         glEnable(GL_DEPTH_TEST)
+
+        ui_width = 180
 
         pm = pango.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000)
         mv = pango.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pango.AxisY)
@@ -55,24 +56,22 @@ class Visualizer:
         self.scam = s_cam
 
 
-    def run(self, pose_q, pts_q):
-        poses = []
-        while not pango.ShouldQuit():
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.dcam.Activate(self.scam)
+    def draw(self, poses, pts):
+        
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        self.dcam.Activate(self.scam)
 
-            pose = pose_q.get()
-            poses.append(pose)
-            for pose in poses: 
-                glLineWidth(1)
-                glColor3f(0.0, 0.0, 1.0)
-                self.__draw_camera(pose, 0.5, 0.75, 0.8)
-
-            pts = pts_q.get()
-            glPointSize(2)
-            glColor3f(1.0, 0.0, 0.0)
-            pango.glDrawPoints(pts)
-            pango.FinishFrame()
+        for pose in poses: 
+            pose = pose.T
+            assert pose.shape == (4, 3)
+            glLineWidth(1)
+            glColor3f(0.0, 0.0, 1.0)
+            self.__draw_camera(pose, 0.5, 0.75, 0.8)
+        
+        glPointSize(2)
+        glColor3f(1.0, 0.0, 0.0)
+        pango.glDrawPoints(pts)
+        pango.FinishFrame()
 
 
     # https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/contrib.hpp
@@ -82,7 +81,7 @@ class Visualizer:
         z = w * z_ratio
 
         glPushMatrix()
-        glMultTransposeMatrixd(camera)
+        # glMultTransposeMatrixd(camera)
 
         glBegin(GL_LINES)
         glVertex3f(0,0,0)
