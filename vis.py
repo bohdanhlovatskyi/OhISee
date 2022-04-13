@@ -1,9 +1,8 @@
 try:
     import OpenGL as ogl
     try:
-        import OpenGL.GL   # this fails in <=2020 versions of Python on OS X 11.x
+        import OpenGL.GL as gl   # this fails in <=2020 versions of Python on OS X 11.x
     except ImportError:
-        print('Drat, patching for Big Sur')
         from ctypes import util
         orig_util_find_library = util.find_library
         def new_util_find_library( name ):
@@ -14,84 +13,103 @@ try:
 except ImportError:
     pass
 
+import sys
+# Run this via this (LMAO) : /Library/Frameworks/Python.framework/Versions/3.9/bin/python3.9
+sys.path.append("./Pangolin/build")
+
+import time
 import numpy as np
-import pygame
-from pygame.locals import *
-
-from scipy.spatial.transform import Rotation as R
-
+import pypangolin as pango
 from OpenGL.GL import *
-from OpenGL.GLU import *
 
-verticies = (
-    (1, 1, 1),
-    (1, 1, -1),
-    (1, -1, -1),
-    (1, -1, 1),
+
+def a_callback():
+    print("a pressed")
+
+# https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/contrib.hpp
+# https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/examples/simple_draw.py
+def draw_camera(camera, w, h_ratio, z_ratio):
+    r = camera
+
+    h = w * h_ratio;
+    z = w * z_ratio;
+
+    glPushMatrix();
+    glMultTransposeMatrixd(r)
+
+    glBegin(GL_LINES)
+    glVertex3f(0,0,0)
+    glVertex3f(w,h,z)
+    glVertex3f(0,0,0)
+    glVertex3f(w,-h,z)
+    glVertex3f(0,0,0)
+    glVertex3f(-w,-h,z)
+    glVertex3f(0,0,0)
+    glVertex3f(-w,h,z)
+    glVertex3f(w,h,z)
+    glVertex3f(w,-h,z)
+    glVertex3f(-w,h,z)
+    glVertex3f(-w,-h,z)
+    glVertex3f(-w,h,z)
+    glVertex3f(w,h,z)
+    glVertex3f(-w,-h,z)
+    glVertex3f(w,-h,z)
+    glEnd()
+
+    glPopMatrix()
+
+
+# examples: https://gitlab.ethz.ch/3dv/pangolin/-/blob/master/pyexamples/SimpleDisplay.py
+def main():
+    win = pango.CreateWindowAndBind("pySimpleDisplay", 640, 480)
+    glEnable(GL_DEPTH_TEST)
+
+    pm = pango.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000)
+    mv = pango.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pango.AxisY)
+    s_cam = pango.OpenGlRenderState(pm, mv)
+
+    ui_width = 180
+
+    handler = pango.Handler3D(s_cam)
+    d_cam = (
+        pango.CreateDisplay()
+        .SetBounds(
+            pango.Attach(0),
+            pango.Attach(1),
+            pango.Attach.Pix(ui_width),
+            pango.Attach(1),
+            -640.0 / 480.0,
+        )
+        .SetHandler(handler)
     )
 
-edges = ((0, 1), (1, 2), (2, 3), (3, 0))
+    ctrl = -96
+    pango.RegisterKeyPressCallback(ctrl + ord("a"), a_callback)
 
-'''
-R: rotation matrix: 
- [[ 9.89555140e-01  1.44154861e-01 -1.58426087e-06]
- [-1.44154861e-01  9.89555140e-01  2.16215628e-05]
- [ 4.68456688e-06 -2.11673497e-05  1.00000000e+00]]
-T: camera transformation: 
- [[-0.97362598]
- [-0.22814791]
- [ 0.00099136]]
-'''
+    pose = np.identity(4)
+    pose[:3, 3] = np.random.randn(3)
 
-T = np.array([[-0.97362598],
- [-0.22814791],
- [ 0.00099136]])
+    while not pango.ShouldQuit():
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-Rr = np.array([[ 9.89555140e-01,  1.44154861e-01, -1.58426087e-06],
- [-1.44154861e-01,  9.89555140e-01,  2.16215628e-05],
- [ 4.68456688e-06, -2.11673497e-05,  1.00000000e+00]])
+        
+        d_cam.Activate(s_cam)
+        pango.glDrawColouredCube()
 
-r = R.from_matrix(Rr)
-Rr = r.as_quat()
-print(Rr)
+        # pose[:3, 3] += np.array([0.5,-.3,0])
+        # glLineWidth(1)
+        # glColor3f(0.0, 0.0, 1.0)
+        # draw_camera(pose, 0.5, 0.75, 0.8)
 
-def Camera():
-    glBegin(GL_LINES)
-    for edge in edges:
-        for vertex in edge:
-            glVertex3fv(verticies[vertex])
-    glEnd()
+        # points = np.random.random((10000, 3)) * 10
+        # glPointSize(2)
+        # glColor3f(1.0, 0.0, 0.0)
+        # pango.glDrawPoints(points)
+        pango.FinishFrame()
 
-def Point(x, y, z):
-    glPointSize(4)
-    glBegin( GL_POINTS)
-    glVertex3fv((x,y,z))
-    glEnd()
-
-def main():
-    pygame.init()
-    display = (800,600)
-    pygame.display.set_mode(display, DOUBLEBUF|OPENGL)
-
-    gluPerspective(45, (display[0]/display[1]), 0.1, 50.0)
-
-    glTranslatef(0.0,0.0, -5)
-
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-                quit()
+        time.sleep(0.2)
 
 
-        glTranslatef(*[elm / 100 for elm in T])
-        glRotatef(*Rr)
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-        for i in range(100):
-            Point(i, i + 2*i, i - 2*i)
-        Camera()
-        pygame.display.flip()
-        pygame.time.wait(100)
 
 
 if __name__ == "__main__":

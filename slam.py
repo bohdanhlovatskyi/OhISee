@@ -108,8 +108,8 @@ class Extractor:
         # to 0, thus if bad match occured it will be filtered
         pts1, pts2 = np.int32(pts1), np.int32(pts2)
         E, mask = cv2.findEssentialMat(pts1, pts2,
-                    focal=cm.get_focal(),
-                    pp=cm.get_pp(),
+                    focal=self.cm.get_focal(),
+                    pp=self.cm.get_pp(),
                     method=cv2.RANSAC,
                     prob=0.999,
                     threshold=3.0
@@ -129,36 +129,40 @@ class Extractor:
         return list(zip(pts1, pts2)), Rt
 
 
+class VO:
+
+    def __init__(self, video_path: str) -> None:
+        self.cm = PinholeCameraModel((932, 934), (474, 632))
+        self.e = Extractor(self.cm)
+        self.vid = cv2.VideoCapture(video_path)
+
+    def __call__(self, *args, **kwds):
+        while True:
+            ret, frame = self.vid.read()
+            if ret is None:
+                print("[LOG]: could not fetch new frame")
+                continue
+
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            mtchs, Rt = self.e.process_frame(gray)
+            print("[LOG]: matches: ", len(mtchs))
+            if len(mtchs) == 0:
+                continue
+
+            for p1, p2 in mtchs:
+                p1, p2 = tuple(map(int, p1)), tuple(map(int, p2))
+                cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
+                cv2.line(frame, p1, p2, color=(0, 0, 255))
+
+            print(Rt)
+
+            pts = self.e.get_points(mtchs, Rt)
+            cv2.imshow('frame', frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
 if __name__ == "__main__":
     PATH = 'data/vid.mp4'
-    vid = cv2.VideoCapture(PATH)
-
-    cm = PinholeCameraModel((932, 934), (474, 632))
-    e = Extractor(cm)
-
-    while True:
-        ret, frame = vid.read()
-        if ret is None:
-            print("[LOG]: could not fetch new frame")
-            continue
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        mtchs, Rt = e.process_frame(gray)
-        print("[LOG]: matches: ", len(mtchs))
-        if len(mtchs) == 0:
-            continue
-
-        for p1, p2 in mtchs:
-            p1, p2 = tuple(map(int, p1)), tuple(map(int, p2))
-            cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
-            cv2.line(frame, p1, p2, color=(0, 0, 255))
-    
-        print(Rt)
-
-        pts = e.get_points(mtchs, Rt)
-        cv2.imshow('frame', frame)
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
+    VO(PATH)()
