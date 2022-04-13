@@ -33,6 +33,8 @@ if __name__ == "__main__":
     kp2 = detector.detect(img2, None)
     kp2, d2 = detector.compute(img2, kp2)
 
+    print(d1, type(d1), "\n", d2, type(d2))
+
     matcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
     knn_matches = matcher.match(d1, d2)
