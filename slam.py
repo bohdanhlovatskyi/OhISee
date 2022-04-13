@@ -1,6 +1,11 @@
+from turtle import pos
 import cv2
 import time
+import queue
+import threading
 import numpy as np
+
+from vis import Visualizer
 
 class PinholeCameraModel:
 
@@ -38,9 +43,10 @@ class Extractor:
 
         self.E = None
 
-        # storing previously computed kp
+        # storing previously computed values
         self.last_kpts = None
         self.last_descr = None
+        self.prev_pose = None
 
     # frame should be gray scale
     def __get_features(self, frame):
@@ -50,14 +56,15 @@ class Extractor:
                          self.min_distance
                     )
 
-        kpts = [cv2.KeyPoint(*point.ravel(), size=10) for point in kpts]
+        kpts = [cv2.KeyPoint(*point.ravel(), _size=10) for point in kpts]
         kpts, descr = self.orb.compute(frame, kpts)
 
         return kpts, descr
 
     def get_points(self, pts, Rt):
-        first_view_rt = np.zeros((3, 4))
-        first_view_rt[:, :3] = np.eye(3)
+        if self.prev_pose is None:
+            self.prev_pose = np.zeros((3, 4))
+            self.prev_pose[:, :3] = np.eye(3)
         # TOOD: perhaps we need to normalise the coordinates
         # in the views
 
@@ -65,7 +72,7 @@ class Extractor:
         pts = np.array(pts)
         p1, p2 = np.float64(pts[:, 0].T), np.float64(pts[:, 1].T)
         K = self.cm.get_camera_mtx()
-        proj1 = np.matmul(K, first_view_rt)
+        proj1 = np.matmul(K, self.prev_pose)
         proj2 = np.matmul(K, Rt)
 
         assert p1.shape[0] == 2 and p2.shape[0] == 2
@@ -79,7 +86,8 @@ class Extractor:
         pt /= pt[3, :]
         pt = pt[:3, :]
 
-        print(pt.shape, pt[:3, 0])
+        print("[LOG]: random point: ", pt.shape, pt[:3, 0])
+        self.prev_pose = Rt
 
         return pt
 
@@ -136,7 +144,7 @@ class VO:
         self.e = Extractor(self.cm)
         self.vid = cv2.VideoCapture(video_path)
 
-    def __call__(self, *args, **kwds):
+    def run(self, pose_q, pts_q):
         while True:
             ret, frame = self.vid.read()
             if ret is None:
@@ -155,14 +163,39 @@ class VO:
                 cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
                 cv2.line(frame, p1, p2, color=(0, 0, 255))
 
-            print(Rt)
+            pose_q.put(Rt)
+            print("[LOG]: pos: ", Rt)
 
             pts = self.e.get_points(mtchs, Rt)
+            pts_q.put(pts)
             cv2.imshow('frame', frame)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
+
+class SLAM:
+
+    def __init__(self, path: str) -> None:
+        self.vo = VO(path)
+        self.vis = Visualizer()
+        self.poses = []
+        self.ptsmap = []
+        self.pq = queue.Queue()
+        self.pts_q = queue.Queue()
+    
+    def run(self):
+
+        vis_thread = threading.Thread(target=self.vis.run, args=(self.pq, self.pts_q))
+        vis_thread.setDaemon(True)
+        vis_thread.start()
+        
+        # run visual odometry in the main thread, so not to
+        # get headache with passing cv2 image output bacck here
+        self.vo.run(self.pq, self.pts_q)
+
+
 if __name__ == "__main__":
     PATH = 'data/vid.mp4'
-    VO(PATH)()
+    sl = SLAM(PATH)
+    sl.run()

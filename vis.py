@@ -15,18 +15,19 @@ try:
 except ImportError:
     pass
 
+import sys
+sys.path.append("./Pangolin/build")
 import time
+import queue
 import numpy as np
 import pypangolin as pango
 from OpenGL.GL import *
+
 
 # mainly taken from: https://gitlab.ethz.ch/3dv/pangolin/-/blob/master/pyexamples/SimpleDisplay.py
 class Visualizer:
 
     def __init__(self) -> None:
-        import sys
-        sys.path.append("./Pangolin/build")
-
         self.cam = None
         self.init()
         
@@ -54,26 +55,24 @@ class Visualizer:
         self.scam = s_cam
 
 
-    def run(self, delay: float = 0):
+    def run(self, pose_q, pts_q):
+        poses = []
         while not pango.ShouldQuit():
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.dcam.Activate(self.scam)
 
+            pose = pose_q.get()
+            poses.append(pose)
+            for pose in poses: 
+                glLineWidth(1)
+                glColor3f(0.0, 0.0, 1.0)
+                self.__draw_camera(pose, 0.5, 0.75, 0.8)
 
-            pose = np.identity(4)
-            pose[:3, 3] = np.random.randn(3)
-            pose[:3, 3] += np.array([0.5,-.3,0])
-            glLineWidth(1)
-            glColor3f(0.0, 0.0, 1.0)
-            self.__draw_camera(pose, 0.5, 0.75, 0.8)
-
-            # points = np.random.random((10000, 3)) * 10
-            # glPointSize(2)
-            # glColor3f(1.0, 0.0, 0.0)
-            # pango.glDrawPoints(points)
+            pts = pts_q.get()
+            glPointSize(2)
+            glColor3f(1.0, 0.0, 0.0)
+            pango.glDrawPoints(pts)
             pango.FinishFrame()
-
-            time.sleep(delay)
 
 
     # https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/contrib.hpp
