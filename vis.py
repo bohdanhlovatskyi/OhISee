@@ -34,8 +34,6 @@ class Visualizer:
         pango.CreateWindowAndBind("pySimpleDisplay", 640, 480)
         glEnable(GL_DEPTH_TEST)
 
-        ui_width = 180
-
         pm = pango.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000)
         mv = pango.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pango.AxisY)
         s_cam = pango.OpenGlRenderState(pm, mv)

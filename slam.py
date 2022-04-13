@@ -145,6 +145,8 @@ class VO:
     def run(self, vis):
         poses = []
         points = []
+
+        cam_pos = np.eye(4)
         while True:
             ret, frame = self.vid.read()
             if ret is None:
@@ -163,11 +165,14 @@ class VO:
                 cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
                 cv2.line(frame, p1, p2, color=(0, 0, 255))
 
-            poses.append(Rt)
+
+            # move the camera via transformation
+            cam_pos = cam_pos @ np.vstack([Rt, [0, 0, 0, 1]])
+            poses.append(cam_pos[:3, :])
             print("[LOG]: pos: ", Rt)
 
             assert Rt.shape == (3, 4)
-            pts = self.e.get_points(mtchs, Rt).T
+            pts = self.e.get_points(mtchs, cam_pos[:3, :]).T
 
             points.extend(pts)
             cv2.imshow('frame', frame)
