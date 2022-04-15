@@ -78,7 +78,7 @@
 
 % If you don't want a supervisor, uncomment the two lines below and remove the section above
 \Large \emph{Authors:}\\
-Augusta Ada King-Noel \textsc{Lovelace}\\Charles \textsc{Babbage}\\[1cm] % Your name
+Bohdan \textsc{Hlovatskyi}, Mykhailo \textsc{Pasichnyk}, Stefan-Yuriy \textsc{Malyk}\\[1cm] % Your name
 
 %----------------------------------------------------------------------------------------
 %	DATE SECTION
@@ -103,19 +103,27 @@ Augusta Ada King-Noel \textsc{Lovelace}\\Charles \textsc{Babbage}\\[1cm] % Your 
 
 % TODO: we can make pyopencv not plain text I assume
 \begin{abstract}
-Bla bla about the importance of SLAM. (robotics and so on). We implemented the proposed algorithm by means of pyopencv. Source code: ~\cite{GitHub}.
+SLAM or Simultaneous Localization and Mapping - problem of constructing a map of unknown environment simultaneously tracking the object's location. Such algorithms utilize the data obtained from sensors, such as video camera, lidar etc to construct a 3-D model of the nearby objects. They are used in variety of fields: autonomous driving and robots, augmented reality and much more. The algorithms that rely on video data are referred to as Visual SLAM. They obtain the valuable information by means of Computer Vision and different techniques of Signal Processing. We implemented such algorithm by means of Python and pyopencv as our Linear Algebra course work. Source code: ~\cite{GitHub}.
 \end{abstract}
 
 \section{Introduction}
 
- - what is SLAM (visual slam)
- - different approached (Monocular, Stereo, RGBD and so on), just mention, could be described below. 
- - frontend / backend - we focused on frontend (get the ddiagram from the book).
- 
+Visual SLAM is a family of algorithms that solve the problem of Simultaneous Localization and Mapping by means of Computer Vision. Depending on the type of input video stream there are different types of visual SLAM:
+\begin{itemize}
+    \item Monocular SLAM. Such SLAM takes as an input video stream from a single RGB camera. This is the simplest type of SLAM, though it has a lot of limitations, the most important of which is the fact that we can construct environment map only to some scale factor. In other words, we cannot obtain the exact depth of featured points in an environment from single image source. 
+    \item Stereo SLAM. Input video stream comes from two cameras. This allows to get the exact depth of the featured points.
+    \item RGBD. Specific kind of SLAM that gets the input data from RGBD camera - the one that included depth of objects within an image. There are different technologies for such cameras though they are not particularly important for the algorithm itself.
+\end{itemize}
+
+
+The pipeline of SLAM algorithms will usually look in the following way:
+\begin{center}
+    \includegraphics[height=4cm]{pipeline.png}\\[1cm]
+\end{center}
+
+In this work we are mainly interested in Frontend Visual Odometry, goal of which is to track the object that produces the source data and build non-optimized 3-D cloud map of environment. Backend optimization and loop closing are powerful techniques to optimize the SLAM and get rid of the noise that brings a lot of inaccuracy in the SLAM algorithm. Those algorithm, such as Kalman and Particle filters, are beyond the scope of Computer vision and are related mainly to signal processing, thus won't be focused on here.
 
 \section{Problem setting}
-% TODO: what is that
-\label{sec:examples}
 
 \subsection{Problem formulation}
 
@@ -130,6 +138,150 @@ These two equation summarize the SLAM. For the Euclidean space the motion model 
     R  &  t      \\
     0^{T}  &  1      
 \end{bmatrix} \in \mathbf{R}^{4x4} \},$$ where $R$ - rotation matrix, $t$ - translation vector. It allows to express state $a_{1}$ as $$a_{1} = R a_{0} + t.$$ Important note here is that we associate the state of an object with the location of camera that produces some input data.
+
+\subsection{Camera model}
+
+\begin{center}
+    \includegraphics[height=5cm]{camera_model.png}
+\end{center}
+
+Any point in space can be represented by three coordinate systems:
+\begin{itemize}
+    \item The World Coordinate System - point \textbf{P} =  $(X_w, Y_w, Z_w)$. For example if our object is in a room we can threat floor as $x-y$ axis and a wall as $z$ axis
+    \item The Camera Coordinate System - $(X_c, Y_c, Z_c)$ the same object in 3D space but from camera, where $X_c$ points to the right, $Y_w$ down and $Z_w$ towards the camera
+    \item The point projection to the plane (image itself)
+\end{itemize}
+ 
+ The world and camera coordinate systems are related by the rotation matrix \textbf{R} and translation vector \textbf{t}. Thus
+ 
+ \[
+ \begin{bmatrix}
+    X_c \\
+    Y_c \\
+    Y_c
+\end{bmatrix}
+=
+\textbf{R}
+ \begin{bmatrix}
+    X_w \\
+    Y_w \\
+    Y_w
+\end{bmatrix} 
++ \textbf{t}
+\]
+ We can rewrite statement above to make it more compact and call such  \begin{bmatrix}
+    \textbf{R} | \textbf{t}
+\end{bmatrix} 
+matrix the \textbf{Extrinsic matrix}
+\[
+ \begin{bmatrix}
+    X_c \\
+    Y_c \\
+    Y_c
+\end{bmatrix}
+=
+ \begin{bmatrix}
+    \textbf{R} | \textbf{t}
+\end{bmatrix} 
+\begin{bmatrix}
+    X_w \\
+    Y_w \\
+    Z_w \\
+    1
+\end{bmatrix}
+\]
+Now that we have our point \textbf{P} in the camera coordinate system we can project it onto the plane. 
+
+\begin{center}
+    \includegraphics[height=4cm]{focal_length.jpg}
+\end{center}
+
+Our projected point $(x, y)$ can be found using following equations:\\
+\begin{center}
+    $x = f \cfrac{X_c}{Z_c}, y = f \cfrac{Y_c}{Z_c}$
+\end{center}
+
+where $f$ is the focal length of the camera. One important thing to mention is that the image \textbf{P} going though camera's optical center would be inverted. However, since usage of such camera would be inconvenient camera's software performs some transformation. Thus, this step could be omitted and we can stick to the equations above.
+Next we construct such a matrix: \\
+\[
+\begin{bmatrix}
+    x' \\
+    y' \\
+    z'
+\end{bmatrix}
+=
+\begin{bmatrix}
+    f & 0 & 0\\
+    0 & f & 0 \\
+    0 & 0 & f \\
+\end{bmatrix}
+\begin{bmatrix}
+    Y_c \\
+    X_c \\
+    Z_c \\
+\end{bmatrix}
+\]
+It would be referred as the \textbf{Intrinsic Matrix}.
+Another important observation to make is that the optical center of the camera could be shifted from the origin of the camera coordinate system. Thus we need to modify the Intrinsic matrix as such:\\
+\[\textbf{K} = \begin{bmatrix}
+    f & 0 & c_x\\
+    0 & f & c_y \\
+    0 & 0 & f \\
+\end{bmatrix}\]
+Combining all of the above we can get coordinates of the object on our image $(u,v)$:\\
+\[
+\begin{bmatrix}
+    u' \\
+    v' \\
+    w'
+\end{bmatrix}
+=
+\begin{bmatrix}
+    f & 0 & c_x\\
+    0 & f & c_y \\
+    0 & 0 & f \\
+\end{bmatrix}
+\begin{bmatrix}
+    Y_c \\
+    X_c \\
+    Z_c \\
+\end{bmatrix}
+\]
+where 
+\begin{center}
+    $u = \cfrac{u'}{w'}, v = \cfrac{u'}{w'}$
+\end{center}
+
+\subsection{Feature detection}
+Firstly let define what a feature is. It is a some pattern in the image which has several proprieties:
+\begin{enumerate}
+    \item {\bf Repeatability}: The same feature can be found in different images.
+    \item {\bf Distinctiveness}: Different features have different expressions.
+    \item {\bf Efficiency}: In the same image, the number of feature points should be far smaller than the number of pixels.
+    \item {\bf Locality}: The feature is only related to a small image area.
+\end{enumerate}
+
+Historically there were 3 most popular approaches in algorithms of feature detection:
+\begin{enumerate}
+    \item {\bf  SIFT} (Scale-Invariant Feature Transform) : is one of the most classic. It is fully consider the changes in illumination, scale, and rotation during the image transformation, but is so calculating expensive, so rarely used in SLAM.
+
+    \item {\bf FAST} : is extremely fast to compute. Has following algorithm:
+    \begin{enumerate}
+        \item Select pixel $p$ in the image, assuming its brightness as $I_p$
+        \item Set a threshold $T$ (for example, $20\%$ of $I_p$).
+        \item Take the pixel p as the center, and select the 16 pixels on a circle with a radius of 3.
+        \item If there are consecutive $N$ points on the selected circle whose brightness is greater than $I_p+T$ or less than $I_p−T$ , then the central pixel $p$ can be considered a feature point. $N$ usually takes 12, which is {\br FAST-12}. Also $N$ could be 9 / 11 / etc, with respective names of FAST.
+        \item Iterate through the above four steps on each pixel.
+    \end{enumerate}
+    
+\end{enumerate}
+    
+\begin{center}
+    \includegraphics[height=5cm]{FAST_example.png}\\[1cm]
+    [Fig 1] : Illustration of of FAST algorithm 
+\end{center}
+
+It has problem that the detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem. This two problems fix ORB algorithm.
 
 \subsection{Epipolar geometry}
 
@@ -180,8 +332,28 @@ In practice, the Essential matrix is found via Eight-Point algorithm and then $R
 
 \subsection{Triangulation}
 
+The second goal of SLAM is to estimate the relative positions of the feature points. Knowing the relative position of the camera and the relative positions of those featuer points, we can reconstruct their global coordinates and construct the feature map of the environment. 
+
+\begin{center}
+    \includegraphics[height=5cm]{triangulation.png}\\[1cm]
+\end{center}
+
+From the epipolar constraint: $s_{2} x_{2} = s_{1} R x_{1} + t$. Here $x_{1, 2}$ - normalised coordinates (coordinates in the pixels' plane) of two feature points. Knowing $R, t$, we can now calculate $s_{1, 2}$ that will represent the 'depth' of a pixel. 
+
+\begin{equation}
+    s_{2} x_{2} \times x_{2} = 0 = s_{1} x_{2} \times R x_{1} + x_{2} \times t,
+\end{equation}
+which can be solved for $s_{1}$. Geometrically, we seek to find a 3D point on the ray $O_{1}p_{1}$ to make its projection close to $p_{2}$.
 
 \section{Overview of approaches}
+As was mentioned earlier, there exists different types of SLAM algorithms that depend on different type of input video stream. Though as we are focusing particularly on visual SLAM in this work, we would consider different approached to SLAM problem from the perspective of Computer Vision:
+
+\begin{itemize}
+    \item The most popular implementation of visual SLAM is OpenVSLAM available open-source. It utilises notions of gloval and local key frame maps. For the local map it finds points via triangulation and for the global one uses pose-graph optimization. It also contain a global optimization module, which optimizes mathcing against global map. ~\cite{OpenVSLAM}
+    \item Interesting to mention is the approach proposed by the ORB-SLAM. The authors use beg-of-words representation of encoded descriptors for each of the feature points in order to optimise the process of feature matching against the stored feature map. It has also a logical continuation as ORB-SLAM 2, which introduced ability to work with stereo input data. ~\cite{ORB_SLAM}
+    \item Speaking of the camera calibration, the classical approach to it is using a chess board' photos from different perspective in order to estimate the intrinsic parameters. ~\cite{Camera_Calibration}. There are also some research conducted in the field of camera self-calibration. ~\cite{Self_Calibration}.
+    \item It is worth mentioning that the research in the SLAM field is being actively maintained. The good example of it is creation of general frameworks such as expressed in the cited papeer. ~\cite{GeneralFramework}.
+\end{itemize}
 
 \section{Implementation}
 
@@ -212,7 +384,7 @@ In practice, the Essential matrix is found via Eight-Point algorithm and then $R
 The algorithm was implemented in Python via pyopencv. The visualizer of the SLAM was written via OpegGL. For the feature extraction the ORB was used due to its computational efficiency. Feature matching was done in brute-force manner because limitation on the number of features was only several hundreds. Fundamental matrix was then constructed as we lack the camera parameters for the test video. 
 
 \begin{center}
-    \includegraphics[height=10cm]{res.png}\\[1cm]
+    \includegraphics[height=7cm]{res.png}\\[1cm]
 \end{center}
 
 \section{Experiments}
@@ -229,10 +401,24 @@ There are two main limitations of such approach:
 
 \appendix
 
-\begin{thebibliography}{9}
+\begin{thebibliography}{10}
 
 \bibitem{GitHub} \texttt{https://github.com/bohdanhlovatskyi/OhISee}
+\bibitem{Testing_Data} \texttt{http://www.cvlibs.net/datasets/kitti/eval_odometry.php}
+
+\bibitem{ORB_SLAM} \texttt{http://webdiis.unizar.es/~raulmur/MurMontielTardosTRO15.pdf}
+
+\bibitem{Camera_Calibration} \texttt{https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr98-71.pdf} 
+
+\bibitem{Self_Calibration} \texttt{https://users.aalto.fi/~kannalj1/publications/wacv2016.pdf}
+
+\bibitem{Slambook} \texttt{https://github.com/gaoxiang12/slambook-en}
+
+\bibitem{OpenVSLAM} \texttt{https://arxiv.org/pdf/1910.01122.pdf}
+
+\bibitem{GeneralFramework} \texttt{https://arxiv.org/pdf/1902.07995.pdf}
 
 \end{thebibliography}
+
 
 \end{document}
