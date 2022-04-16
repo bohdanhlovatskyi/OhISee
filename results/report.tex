@@ -133,10 +133,10 @@ With the given setting, we are interested mainly in two parts:
     \item Collecting the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
 \end{enumerate}
 
-These two equation summarize the SLAM. For the Euclidean space the motion model can be expressed as the so-called special Euclidean Group: $$SE(3) = \{ T = \[
+These two equation summarize the SLAM. For the Euclidean space the motion model can be expressed as the so-called special Euclidean Group: $$SE(3) = \{ T =
 \begin{bmatrix}
-    R  &  t      \\
-    0^{T}  &  1      
+    R    &  t      \\
+    0^T  &  1      
 \end{bmatrix} \in \mathbf{R}^{4x4} \},$$ where $R$ - rotation matrix, $t$ - translation vector. It allows to express state $a_{1}$ as $$a_{1} = R a_{0} + t.$$ Important note here is that we associate the state of an object with the location of camera that produces some input data.
 
 \subsection{Camera model}
@@ -273,15 +273,37 @@ Historically there were 3 most popular approaches in algorithms of feature detec
         \item If there are consecutive $N$ points on the selected circle whose brightness is greater than $I_p+T$ or less than $I_p−T$ , then the central pixel $p$ can be considered a feature point. $N$ usually takes 12, which is {\br FAST-12}. Also $N$ could be 9 / 11 / etc, with respective names of FAST.
         \item Iterate through the above four steps on each pixel.
     \end{enumerate}
+    \begin{center}
+        \includegraphics[height=5cm]{FAST_example.png}\\[1cm]
+        [Fig 1] : Illustration of of FAST algorithm 
+    \end{center}
+    This algorithm has an problem, that the detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem. This two problems fix ORB algorithm.
     
+    \item {\bf OBR}  (Oriented FAST and Rotated BRIEF) : it solves both mentioned problem of FAST, by adding the description of scale and rotation. In addition, it uses the extremely fast binary descriptor BRIEF.
+    \begin{enumerate}
+        \item The scale invariance is achieved by the image pyramid and detect corner points on each layer
+        \begin{center}
+            \includegraphics[height=5cm]{image_piramide.png}\\[1cm]
+            [Fig 2] : Use pyramids to match images at different resolutions.
+        \end{center}
+        
+        \item In terms of rotation, we calculate the gray centroid of the image near the feature point. The so-called centroid refers to the gray value of the image block as the center of weight. The specific steps are as follows:
+        \begin{enumerate}
+            \item In a small image block B, define the moment of the image block as:
+            $$ m_{pq} = \sum_{x,y \in B} x^p y^q I(x,y), p,q =\{0,1\} $$
+            \item Calculate the centroid of the image block by the moment:
+            $$ C = (\frac{m_{10}}{m_{00}}, \frac{m_{01}}{m_{00}}) $$
+            \item Connect the geometric center $O$ and the centroid $C$ of the image block to get a direction vector $\overrightarrow{OC}$, so the direction of the feature point can be defined as: $\theta = arctan(\frac{m_{01}}{m_{10}})$.
+        \end{enumerate}
+        
+        \item After extracting the Oriented FAST key points, we calculate the descriptor for each point. ORB uses an improved BRIEF feature description. BRIEF is a binary descriptor. Its description vector consists of many zeros and ones, which encode the size relationship between two random pixels near the key point (such as p and q): If p is greater than q, then take 1, otherwise take 0. If we take 128 such p, q pairs, we will finally get a 128-dimensional vector consisting of 0s and 1s. The BRIEF implements the comparison of randomly selected points, which is very fast. Since it expresses in binary, it is also very convenient to store and suitable for real-time image matching. The original BRIEF descriptor does not have rotation invariance, so it is easy to get lost when the image is rotated. The ORB calculates the direction of the key points in the FAST feature point extraction stage. The direction information can be used to calculate the Steer BRIEF feature after the rotation so that the ORB descriptor has better rotation invariance. 
+    \end{enumerate}
 \end{enumerate}
-    
-\begin{center}
-    \includegraphics[height=5cm]{FAST_example.png}\\[1cm]
-    [Fig 1] : Illustration of of FAST algorithm 
-\end{center}
 
-It has problem that the detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem. This two problems fix ORB algorithm.
+Due to the consideration of rotation and scaling, the ORB performs well under translation, rotation, and scaling. Meanwhile, the combination of FAST and BRIEF is very efficient, which makes ORB features very popular in real-time SLAM, so in our project we will use this approach.
+
+% \section{Features matching}
+% After we define features in two frames we should match them together, to detect motion between them. Come on, it's easy! Just do it by yourself.
 
 \subsection{Epipolar geometry}
 
