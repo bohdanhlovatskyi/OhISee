@@ -34,24 +34,17 @@ class Visualizer:
         pango.CreateWindowAndBind("pySimpleDisplay", 640, 480)
         glEnable(GL_DEPTH_TEST)
 
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
         pm = pango.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000)
         mv = pango.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pango.AxisY)
-        s_cam = pango.OpenGlRenderState(pm, mv)
+        self.scam = pango.OpenGlRenderState(pm, mv)
 
-        handler = pango.Handler3D(s_cam)
-        d_cam = (
-            pango.CreateDisplay()
-            .SetBounds(
-                pango.Attach(0),
-                pango.Attach(1),
-                pango.Attach(1),
-                pango.Attach(0),
-                -640.0 / 480.0,
-            )
-            .SetHandler(handler)
-        )
-        self.dcam = d_cam
-        self.scam = s_cam
+        self.handler = pango.Handler3D(self.scam)
+        self.dcam = pango.CreateDisplay().SetBounds(
+            pango.Attach(0), pango.Attach(1),
+            pango.Attach(0), pango.Attach(1), -640.0 / 480.0).SetHandler(self.handler)
 
 
     def draw(self, poses, pts):
@@ -65,11 +58,20 @@ class Visualizer:
             glLineWidth(1)
             glColor3f(0.0, 0.0, 1.0)
             self.__draw_camera(pose, 0.5, 0.75, 0.8)
-        
+    
+        self.__draw_points(pts)
+
+        pango.FinishFrame()
+
+
+    def __draw_points(self, pts):
         glPointSize(2)
         glColor3f(1.0, 0.0, 0.0)
-        pango.glDrawPoints(pts)
-        pango.FinishFrame()
+
+        glBegin(GL_POINTS)
+        for p in pts:
+            glVertex3f(p[0], p[1], p[2])
+        glEnd()
 
 
     # https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/contrib.hpp
@@ -79,7 +81,8 @@ class Visualizer:
         z = w * z_ratio
 
         glPushMatrix()
-        # glMultTransposeMatrixd(camera)
+        camera = np.append(camera, np.eye(4)[3][None, :].T, axis=1)
+        glMultTransposeMatrixd(camera)
 
         glBegin(GL_LINES)
         glVertex3f(0,0,0)
