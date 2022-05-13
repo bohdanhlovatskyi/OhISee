@@ -49,7 +49,7 @@ class Extractor:
     # frame should be gray scale
     def get_features(self, frame):
         kpts = cv2.goodFeaturesToTrack(frame,
-                         1000,
+                         3000,
                          0.01,
                          7
                     )
