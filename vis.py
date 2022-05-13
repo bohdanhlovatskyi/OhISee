@@ -17,7 +17,9 @@ except ImportError:
 
 import sys
 sys.path.append("./Pangolin/build")
+
 import time
+import cv2
 import numpy as np
 import pypangolin as pango
 from OpenGL.GL import *
@@ -25,48 +27,57 @@ from OpenGL.GL import *
 
 # mainly taken from: https://gitlab.ethz.ch/3dv/pangolin/-/blob/master/pyexamples/SimpleDisplay.py
 class Visualizer:
-
-    def __init__(self) -> None:
-        self.cam = None
+    def __init__(self, w: int = 1024, h: int = 768, white_theme: bool = True) -> None:
+        self.w = w
+        self.h = h
+        self.scam = None
+        self.dcam = None
+        self.handler = None
+        self.white_theme = white_theme
         self.init()
         
     def init(self):
-        pango.CreateWindowAndBind("pySimpleDisplay", 640, 480)
-        glEnable(GL_DEPTH_TEST)
+        pango.CreateWindowAndBind("SLAM", self.w, self.h)
 
+        glEnable(GL_DEPTH_TEST)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
-        pm = pango.ProjectionMatrix(640, 480, 420, 420, 320, 240, 0.1, 1000)
-        mv = pango.ModelViewLookAt(-2, 2, -2, 0, 0, 0, pango.AxisY)
+        pm = pango.ProjectionMatrix(self.w, self.h, 420, 420, self.w//2, self.h//2, 0.2, 1000)
+        mv = pango.ModelViewLookAt(0, -10, -40, 0, 0, 0, 0, -1, 0)
         self.scam = pango.OpenGlRenderState(pm, mv)
 
         self.handler = pango.Handler3D(self.scam)
         self.dcam = pango.CreateDisplay().SetBounds(
             pango.Attach(0), pango.Attach(1),
-            pango.Attach(0), pango.Attach(1), -640.0 / 480.0).SetHandler(self.handler)
+            pango.Attach(0), pango.Attach(1), -self.w / self.h).SetHandler(self.handler)
 
-
-    def draw(self, poses, pts):
-        
+    def draw(self, cameras, point_cloud):
+        if self.white_theme:        
+            glClearColor(1, 1, 1, 1)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         self.dcam.Activate(self.scam)
 
-        for pose in poses: 
-            pose = pose.T
-            assert pose.shape == (4, 3)
-            glLineWidth(1)
-            glColor3f(0.0, 0.0, 1.0)
-            self.__draw_camera(pose, 0.5, 0.75, 0.8)
-    
-        self.__draw_points(pts)
+        self.draw_cameras(cameras)
+        self.draw_points(point_cloud)
 
         pango.FinishFrame()
 
+    @staticmethod
+    def draw_pts_on_frame(frame, pts1, pts2):
+        for p1, p2 in zip(pts1, pts2):
+            p1, p2 = tuple(map(int, p1)), tuple(map(int, p2))
+            cv2.circle(frame, p1, color=(0, 255, 0), radius = 2, thickness=2)
+            cv2.line(frame, p1, p2, color=(0, 0, 255))
 
-    def __draw_points(self, pts):
-        glPointSize(2)
-        glColor3f(1.0, 0.0, 0.0)
+        return frame
+
+    def draw_points(self, pts):
+        glPointSize(3)
+        if self.white_theme:
+            glColor3f(.8, .4, .6)
+        else:
+            glColor3f(.5, 0.2, 0.3)
 
         glBegin(GL_POINTS)
         for p in pts:
@@ -74,14 +85,19 @@ class Visualizer:
         glEnd()
 
 
+    def draw_cameras(self, cameras):
+        for camera in cameras: 
+            glLineWidth(1)
+            glColor3f(.2, .3, .8)
+            self.draw_camera(camera, 1, 0.75, 0.6)
+
     # https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/contrib.hpp
     # https://github.com/uoip/pangolin/blob/3ac794aff96c3db103ec2bbc298ab013eaf6f6e8/python/examples/simple_draw.py
-    def __draw_camera(self, camera, w, h_ratio, z_ratio):
+    def draw_camera(self, camera, w, h_ratio, z_ratio):
         h = w * h_ratio
         z = w * z_ratio
 
         glPushMatrix()
-        camera = np.append(camera, np.eye(4)[3][None, :].T, axis=1)
         glMultTransposeMatrixd(camera)
 
         glBegin(GL_LINES)
