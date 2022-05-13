@@ -66,13 +66,10 @@ class Extractor:
         pt = cv2.triangulatePoints(
             cur[:3, :], prev[:3, :],
             p1, p2     
-        )
-        # output of trianfulation are homogineous 4-D coords
-        assert pt.shape[0] == 4
+        ).T
 
-        pt /= pt[3, :]
-        pt = pt[:3, :]
-        pt = pt.T
+        pt /= pt[:, 3:]
+        pt = pt[pt[:, 2] > 0]
 
         return pt
 
@@ -167,11 +164,11 @@ class VO:
             cv2.imshow('video stream', frame)
             self.vis.draw(poses, points)
 
-            time.sleep(.02)
+            time.sleep(.01)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
 if __name__ == "__main__":
-    PATH = 'data/vid4.mp4'
+    PATH = 'data/vid.mp4'
     vo = VO(PATH)
     vo.run()
