@@ -9,4 +9,4 @@
 - [DONE] Triangulation
 
 ## Results
-![](results/res.png)
+<video src='results/example.mp4' width=500/>

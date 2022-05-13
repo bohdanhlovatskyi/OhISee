@@ -167,11 +167,11 @@ class VO:
             cv2.imshow('video stream', frame)
             self.vis.draw(poses, points)
 
-            time.sleep(.1)
+            time.sleep(.02)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
 
 if __name__ == "__main__":
-    PATH = 'data/vid.mp4'
+    PATH = 'data/vid4.mp4'
     vo = VO(PATH)
     vo.run()
