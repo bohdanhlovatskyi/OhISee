@@ -127,7 +127,8 @@ class Extractor:
 
 class VO:
 
-    def __init__(self, video_path: str) -> None:
+    def __init__(self, video_path: str, save_traj: str) -> None:
+        self.save_traj = save_traj
         self.cm = PinholeCameraModel((800, 800), (720 // 2, 1280 // 2))
         self.e = Extractor(self.cm)
         self.vid = cv2.VideoCapture(video_path)
@@ -139,8 +140,8 @@ class VO:
 
         while True:
             ret, frame = self.vid.read()
-            if ret is None:
-                return
+            if ret is None or frame is None:
+                break
 
             pts1, pts2, Rt = self.e.process_frame(frame)
             print("matches: ", len(pts1))
@@ -150,6 +151,11 @@ class VO:
             # move the camera via transformation and conduct triangulation to find the points
             print("movement: \n", Rt, "\n")
             cur = np.vstack([Rt, [0, 0, 0, 1]]) @ prev
+
+            # write the results for the testing
+            with open(self.save_traj, "a") as file:
+                file.write(self.traj_to_str(prev))
+
             pts = self.e.get_points(pts1, pts2, prev, cur)
             prev = cur
 
@@ -164,11 +170,28 @@ class VO:
             cv2.imshow('video stream', frame)
             self.vis.draw(poses, points)
 
-            time.sleep(.01)
+            # time.sleep(.01)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break
+        
+        with open(self.save_traj, "r") as file:
+            data = file.readlines()
+
+        for idx, line in enumerate(data):
+            data[idx] = " ".join(line.split())
+
+        with open(self.save_traj, "w") as file:
+            file.write("\n".join(data))
+
+    @staticmethod
+    def traj_to_str(pose):
+        np.set_printoptions(precision=9, suppress=True)
+        res = np.array_str(pose[:3].flatten(), max_line_width=np.inf)
+        res = res.strip("] [")
+        res += "\n"
+
+        return res
 
 if __name__ == "__main__":
-    PATH = 'data/vid.mp4'
-    vo = VO(PATH)
+    vo = VO('data/test_kitti984.mp4', save_traj="result.txt")
     vo.run()
