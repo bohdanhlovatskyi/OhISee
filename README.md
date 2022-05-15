@@ -7,12 +7,21 @@ Link: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
 
 ### Metrics:
 - Absolute pose error, often used as absolute trajectory error. Corresponding poses are directly compared between estimate and reference given a pose relation. Then, statistics for the whole trajectory are calculated. This is useful to test the global consistency of a trajectory.
+- Instead of a direct comparison of absolute poses, the relative pose error compares motions ("pose deltas"). This metric gives insights about the local accuracy, i.e. the drift. For example, the translational or rotational drift per meter can be evaluated 
+- https://github.com/MichaelGrupp/evo/wiki/Metrics
 
 ### Installation:
 ```shell
 git clone https://github.com/MichaelGrupp/evo.git
 cd evo
 pip install --editable . --upgrade --no-binary evo
+```
+
+### Dataset
+
+```shell
+ffmpeg -framerate 10 -pattern_type glob -i '*.png' \
+  -c:v libx264 ../../kitty01_1.mp4
 ```
 
 ### To run the tests:
@@ -23,9 +32,15 @@ evo_traj kitti result.txt --ref=rel/KITTI_00_gt.txt -p --plot_mode=xz
 # find the metrics
 mkdir test_res
 
-evo_ape kitti rel/KITTI_00_gt.txt result.txt -va --plot --plot_mode xz --save_results test_res/result.zip
+# to get absolute error
+# you can also run without args : evo_ape kitti rel/KITTI_00_gt.txt result.txt
+# so to get the cli output
+evo_ape kitti rel/KITTI_00_gt.txt result.txt --plot --plot_mode xz --save_results test_res/result_abs.zip
 
-evo_res test_res/*.zip -p --save_table results/table.csv
+# to get relative error
+evo_rpe kitti rel/KITTI_00_gt.txt result.txt --plot --plot_mode xz --save_results test_res/result_rel.zip
+
+evo_res test_res/*.zip -p --save_table test_res/table.csv
 ```
 
 ## Plan
@@ -34,8 +49,10 @@ evo_res test_res/*.zip -p --save_table results/table.csv
 - [DONE] Add some testing
   - [DONE] Find dataset that would be nice to use
   - [DONE] Find the way to compute some metrics
-  - [] Read more on the metrics
-  - [] Add timestamps so to make relative error estimation possible
+  - [DONE] Read more on the metrics
+  - [DONE] Make sure that the groundtruth matches the video
+  - [] Get the calibration data for the camera in the test
+  - [] Possibly add timestamps
 - [] ORB feature detector
 - [] BF feature matcher
 - [] Epipolar Geometry and Essential matrix

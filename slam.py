@@ -129,7 +129,8 @@ class VO:
 
     def __init__(self, video_path: str, save_traj: str) -> None:
         self.save_traj = save_traj
-        self.cm = PinholeCameraModel((800, 800), (720 // 2, 1280 // 2))
+        self.cm = PinholeCameraModel((7.188560000000e+02, 7.188560000000e+02),
+                                     (6.071928000000e+02, 1.852157000000e+02))
         self.e = Extractor(self.cm)
         self.vid = cv2.VideoCapture(video_path)
         self.vis = Visualizer()
@@ -193,5 +194,5 @@ class VO:
         return res
 
 if __name__ == "__main__":
-    vo = VO('data/test_kitti984.mp4', save_traj="result.txt")
+    vo = VO('data/kitty01_test.mp4', save_traj="result.txt")
     vo.run()
