@@ -1,10 +1,10 @@
 import cv2
-import time
 import numpy as np
 from skimage.measure import ransac
 from skimage.transform import EssentialMatrixTransform
 
 from vis import Visualizer
+from harris import harris_feature_detector
 
 class PinholeCameraModel:
 
@@ -53,6 +53,7 @@ class Extractor:
                          0.01,
                          7
                     )
+        # kpts = harris_feature_detector(frame)
 
         kpts = [cv2.KeyPoint(*point.ravel(), _size=3) for point in kpts]
         kpts, descr = self.orb.compute(frame, kpts)
