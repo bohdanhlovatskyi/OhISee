@@ -5,6 +5,7 @@ from skimage.transform import EssentialMatrixTransform
 
 from vis import Visualizer
 from harris import harris_feature_detector
+from scam import ransac as my_ransac
 
 class PinholeCameraModel:
 
@@ -106,6 +107,13 @@ class Extractor:
                                 min_samples=8,
                                 residual_threshold=0.001,
                                 max_trials=500)
+                                
+        # model, inliers = my_ransac((pts1, pts2),
+        #                                  EssentialMatrixTransform,
+        #                                  sample_size=8,
+        #                                  residual_threshold=0.001,
+        #                                  max_attempts=1000,
+        #                                  prob=0.999)
 
         pts1, pts2 = pts1[inliers], pts2[inliers]
 
