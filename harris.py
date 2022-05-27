@@ -49,6 +49,7 @@ def harris_feature_detector(Img: np.ndarray,
 
     hr = (hr - np.mean(hr)) / np.std(hr)
 
+    threshold = np.max(hr) * threshold
     corners = np.where(hr >= threshold)
     corners = np.array(list(zip(*corners[::-1])))
     corners = corners.astype(np.float64)

@@ -5,7 +5,6 @@ from skimage.transform import EssentialMatrixTransform
 
 from vis import Visualizer
 from harris import harris_feature_detector
-from scam import ransac as my_ransac
 
 class PinholeCameraModel:
 
