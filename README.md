@@ -26,19 +26,20 @@ ffmpeg -framerate 10 -pattern_type glob -i '*.png' \
 
 ### To run the tests:
 ```shell
+mkdir test_res
+
 # compare the trajectories
-evo_traj kitti result.txt --ref=rel/KITTI_00_gt.txt -p --plot_mode=xz
+evo_traj kitti test_res/result.txt --ref=rel/poses.txt -p --plot_mode=xz        
 
 # find the metrics
-mkdir test_res
 
 # to get absolute error
 # you can also run without args : evo_ape kitti rel/KITTI_00_gt.txt result.txt
 # so to get the cli output
-evo_ape kitti rel/KITTI_00_gt.txt result.txt --plot --plot_mode xz --save_results test_res/result_abs.zip
+evo_ape kitti rel/poses.txt test_res/result.txt --plot --plot_mode xz --save_results test_res/result_abs.zip
 
 # to get relative error
-evo_rpe kitti rel/KITTI_00_gt.txt result.txt --plot --plot_mode xz --save_results test_res/result_rel.zip
+evo_rpe kitti rel/poses.txt test_res/result.txt --plot --plot_mode xz --save_results test_res/result_rel.zip
 
 evo_res test_res/*.zip -p --save_table test_res/table.csv
 ```

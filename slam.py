@@ -1,4 +1,5 @@
 import cv2
+import copy
 import numpy as np
 from skimage.measure import ransac
 from skimage.transform import EssentialMatrixTransform
@@ -173,7 +174,7 @@ class VO:
 
             # write the results for the testing
             with open(self.save_traj, "a") as file:
-                file.write(self.traj_to_str(prev))
+                file.write(self.traj_to_str(copy.deepcopy(prev)))
 
             pts = self.e.get_points(pts1, pts2, prev, cur)
             prev = cur
@@ -212,5 +213,5 @@ class VO:
         return res
 
 if __name__ == "__main__":
-    vo = VO('data/test_kitti984.mp4', save_traj="result6.txt")
+    vo = VO('data/test_kitti984.mp4', save_traj="result.txt")
     vo.run()
