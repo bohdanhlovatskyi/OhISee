@@ -1,4 +1,36 @@
-## Visual Odometry
+## SLAM 
+It is not the best SLAM, but it looks and feels as SLAM!
+
+Visualization:
+
+Presentation:
+
+Report:
+
+## Team
+| **Bohdan Hlovatskyi** | **Mykhailo Pasichnyk** | **Stefan Malyk** |
+| :--- | :---: | ---: |
+| ![kakashi](readme/kakashi.jpg) | ![](readme/sasuke.png) | ![](readme/naruto.jpg) |
+| [BohdanHlovatskyi](https://github.com/bohdanhlovatskyi) | [MykhailoPasychnyk](https://github.com/fox-flex) | [StefanMalyk](https://github.com/elem3ntary) |
+
+## Requirements and Installation
+Strongly depends on C++ library Pangoling, which is a convenient wrapper over OpenGL, for visualization.
+
+For its building look at the Pangoling's github that is included as a submodule. Be careful to what python you link it!
+
+After this:
+
+```shell
+# here use pip that corresponds to python you link the pangolin to!
+pip3 install -r requirements.txt
+```
+
+## Results
+
+Main metric - **relative pose error**. Read more in the report.
+
+<img src="materials/error_mapped.png" width="256"/>
+
 
 ## Tests
 
@@ -44,23 +76,11 @@ evo_rpe kitti rel/poses.txt test_res/result.txt --plot --plot_mode xz --save_res
 evo_res test_res/*.zip -p --save_table test_res/table.csv
 ```
 
-## Plan
-- [DONE] CV based implementation of Frontend of the SLAM
-- [DONE] Visualization
-- [DONE] Add some testing
-  - [DONE] Find dataset that would be nice to use
-  - [DONE] Find the way to compute some metrics
-  - [DONE] Read more on the metrics
-  - [DONE] Make sure that the groundtruth matches the video
-  - [] Get the calibration data for the camera in the test
-  - [] Possibly add timestamps
-- [] ORB feature detector
-- [] BF feature matcher
-- [] Epipolar Geometry and Essential matrix
-- [] Camera motion with epipolar constraint
-- [] Triangulation
-- [] Graph pose optimization (probably via g2o)
+## License and Copyright
 
-- [] Fix report
-- [] Fix README
+All the contributions are welcomed!
+
+This project is licensed under the [MIT License](https://choosealicense.com/licenses/mit/).
+
+© 2022 Bohdan Hlovatskyi, Mykhailo Pasychnyk, Stefan-Yuriy Malyk
 
