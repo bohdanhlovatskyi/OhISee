@@ -4,7 +4,8 @@ from skimage.measure import ransac
 from skimage.transform import EssentialMatrixTransform
 
 from vis import Visualizer
-from harris import harris_feature_detector
+# from harris import harris_feature_detector
+# from essential_estimation import ransac, EssentialMat
 
 class PinholeCameraModel:
 
@@ -55,7 +56,7 @@ class Extractor:
                     )
         # kpts = harris_feature_detector(frame)
 
-        kpts = [cv2.KeyPoint(*point.ravel(), _size=3) for point in kpts]
+        kpts = [cv2.KeyPoint(*point.ravel(), _size=20) for point in kpts]
         kpts, descr = self.orb.compute(frame, kpts)
 
         return kpts, descr
@@ -91,7 +92,7 @@ class Extractor:
 
         pts1, pts2 = [], []
         for m, n in mtchs:
-            if m.distance >= 0.7 * n.distance:
+            if m.distance >= 0.75 * n.distance or m.distance > 32:
                 continue
             pts1.append(kpts[m.queryIdx].pt)
             pts2.append(self.last_kpts[m.trainIdx].pt)
@@ -107,8 +108,8 @@ class Extractor:
                                 residual_threshold=0.001,
                                 max_trials=500)
                                 
-        # model, inliers = my_ransac((pts1, pts2),
-        #                                  EssentialMatrixTransform,
+        # model, inliers = ransac((pts1, pts2),
+        #                                  EssentialMat,
         #                                  sample_size=8,
         #                                  residual_threshold=0.001,
         #                                  max_attempts=1000,
@@ -137,15 +138,24 @@ class VO:
 
     def __init__(self, video_path: str, save_traj: str) -> None:
         self.save_traj = save_traj
-        self.cm = PinholeCameraModel((7.188560000000e+02, 7.188560000000e+02),
-                                     (6.071928000000e+02, 1.852157000000e+02))
-        self.e = Extractor(self.cm)
         self.vid = cv2.VideoCapture(video_path)
         self.vis = Visualizer()
+        self.e = None
 
     def run(self):
         prev, cur = np.eye(4), None
         poses, points = [], []
+
+        # W = int(self.vid.get(cv2.CAP_PROP_FRAME_WIDTH))
+        # H = int(self.vid.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        # F = 984 # taken from dataset
+
+        # 9.842439e+02 0.000000e+00 6.900000e+02
+        # 0.000000e+00 9.808141e+02 2.331966e+02
+        # 0.000000e+00 0.000000e+00 1.000000e+00
+        self.cm = PinholeCameraModel((984, 980),
+                                     (690, 230))
+        self.e = Extractor(self.cm)
 
         while True:
             ret, frame = self.vid.read()
@@ -202,5 +212,5 @@ class VO:
         return res
 
 if __name__ == "__main__":
-    vo = VO('data/kitty01_test.mp4', save_traj="result.txt")
+    vo = VO('data/test_kitti984.mp4', save_traj="result6.txt")
     vo.run()

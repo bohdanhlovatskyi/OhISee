@@ -4,3 +4,6 @@
 [submodule "evo"]
 	path = evo
 	url = https://github.com/MichaelGrupp/evo.git
+[submodule "pykitti"]
+	path = pykitti
+	url = https://github.com/utiasSTARS/pykitti.git

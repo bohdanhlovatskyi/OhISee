@@ -1,5 +1,5 @@
 import numpy as np
-
+import random
 
 class EssentialMat:
     def __init__(self, matrix=None):
@@ -117,7 +117,7 @@ def ransac(data: tuple or list, model_class, sample_size,
     done_inters = 0
 
     while done_inters < max_attempts:
-        sample_ind = random.sample(xrange(0, size), sample_size)
+        sample_ind = random.sample(range(0, size), sample_size)
 
         samples = [d[sample_ind] for d in data]
 
