@@ -129,7 +129,7 @@ In this work we are mainly interested in Frontend Visual Odometry, goal of which
 
 With the given setting, we are interested mainly in two parts:
 % 'change of state' kinda ambiguous 
-% collecting landmarks is not a problem
+% collecting landmarks is more like process to solve the problem, not the problem itself
 \begin{enumerate}
     \item Modeling the object's motion. In an abstract setting this can be modeled as $x_{k} = f(x_{k - 1}, u_{k}, w_{k})$, where $x_{k}$ denotes a current position of an object, $x_{k - 1}$ - its previous position, $u_{k}$ - change of its state and $w_{k}$ - noise.  
     \item Collecting the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
@@ -336,7 +336,6 @@ $x_{1, 2} = K^{-1}p_{1, 2}.$ Then the equation above can be rewritten as $x_{2} 
       p_{2}^{\italic{T}} F p_{1} = 0
     \end{cases}\,.
 \end{equation}
-% is essential matrix ?
 It is clear that usage of Essential matrix will make the calculations more accurate, as it uses precomputed calibration parameters for the camera. 
 The process of camera pose estimation can then be summarized as:
 \begin{enumerate}
@@ -404,7 +403,6 @@ As was mentioned earlier, there exist different types of SLAM algorithms that de
 \end{algorithm}
 
 \vskip 1cm
-% why this
 The algorithm was implemented in Python via pyopencv. The visualizer of the SLAM was written via OpegGL. For the feature extraction the ORB was used due to its computational efficiency. Feature matching was done in brute-force manner because limitation on the number of features was only several hundreds. Fundamental matrix was then constructed as we lack the camera parameters for the test video. 
 
 \begin{center}
