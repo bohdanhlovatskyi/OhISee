@@ -36,6 +36,7 @@
 \usepackage[utf8x]{inputenc}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage{minted}
 \usepackage[]{algorithm2e}
 \usepackage{graphicx}
 \usepackage[colorinlistoftodos]{todonotes}
@@ -101,18 +102,17 @@ Bohdan \textsc{Hlovatskyi}, Mykhailo \textsc{Pasichnyk}, Stefan-Yuriy \textsc{Ma
 % ~\cite{Strang}
 
 
-% TODO: we can make pyopencv not plain text I assume
 \begin{abstract}
-SLAM or Simultaneous Localization and Mapping - problem of constructing a map of unknown environment simultaneously tracking the object's location. Such algorithms utilize the data obtained from sensors, such as video camera, lidar etc to construct a 3-D model of the nearby objects. They are used in variety of fields: autonomous driving and robots, augmented reality and much more. The algorithms that rely on video data are referred to as Visual SLAM. They obtain the valuable information by means of Computer Vision and different techniques of Signal Processing. We implemented such algorithm by means of Python and pyopencv as our Linear Algebra course work. Source code: ~\cite{GitHub}.
+SLAM or Simultaneous Localization and Mapping - the problem of constructing a map of an unknown environment, simultaneously tracking the object's location. SLAM algorithms utilize the data obtained from sensors, such as video camera, LIDAR etc to construct a 3-D model of the nearby objects and estimate the relative location of the tracking device itself. They are used in variety of fields: autonomous driving, robotics, augmented reality and much more. The algorithms that rely on video data are referred to as Visual SLAM. They obtain information by means of Computer Vision and different techniques of Signal Processing. In the following work we review available approaches along with the implementation of the chosen one by means of Python and \mintinline{python}{pyopencv} as our Linear Algebra course work. Source code: ~\cite{GitHub}.
 \end{abstract}
 
 \section{Introduction}
 
-Visual SLAM is a family of algorithms that solve the problem of Simultaneous Localization and Mapping by means of Computer Vision. Depending on the type of input video stream there are different types of visual SLAM:
+Visual SLAM is a family of algorithms that solve the problem of Simultaneous Localization and Mapping by means of Computer Vision. Depending on the type of input video stream there are different types of Visual SLAM:
 \begin{itemize}
-    \item Monocular SLAM. Such SLAM takes as an input video stream from a single RGB camera. This is the simplest type of SLAM, though it has a lot of limitations, the most important of which is the fact that we can construct environment map only to some scale factor. In other words, we cannot obtain the exact depth of featured points in an environment from single image source. 
-    \item Stereo SLAM. Input video stream comes from two cameras. This allows to get the exact depth of the featured points.
-    \item RGBD. Specific kind of SLAM that gets the input data from RGBD camera - the one that included depth of objects within an image. There are different technologies for such cameras though they are not particularly important for the algorithm itself.
+    \item Monocular SLAM. Such SLAM takes as an input video stream from a single RGB camera. The simplicity of the setup results in low costs, although implies some limitations, one being particularly significant. t Since a single frame is essentially a projection of a real-world scene to an image plane, we can construct environment map only to some scale factor. In other words, we cannot obtain the exact depth of featured points in an environment from a single image source, only approximate one using multiple images and translation movement.
+    \item Stereo SLAM. Input video stream comes from two cameras. Cameras are positioned on some distance, called baseline, value of which is known beforehand. This allows to get the more accurate depth of the featured points. The limitation is that calibration and computation process is difficult usually requiring additional hardware to generate real-time outputs.
+    \item RGBD. Specific kind of SLAM that gets the input data from RGBD camera - the one that included depth of objects within an image. The depth is computed by emitting light and calculating how much does it took for it to return back. However, this technology is relatively new. As a result the range is limited making it not suitable for outdoor use and price is higher, compared to approaches described above.
 \end{itemize}
 
 
@@ -121,13 +121,15 @@ The pipeline of SLAM algorithms will usually look in the following way:
     \includegraphics[height=4cm]{pipeline.png}\\[1cm]
 \end{center}
 
-In this work we are mainly interested in Frontend Visual Odometry, goal of which is to track the object that produces the source data and build non-optimized 3-D cloud map of environment. Backend optimization and loop closing are powerful techniques to optimize the SLAM and get rid of the noise that brings a lot of inaccuracy in the SLAM algorithm. Those algorithm, such as Kalman and Particle filters, are beyond the scope of Computer vision and are related mainly to signal processing, thus won't be focused on here.
+In this work we are mainly interested in Frontend Visual Odometry, goal of which is to track the object that produces the source data and build non-optimized 3-D cloud map of the environment. Backend optimization and loop closing are powerful techniques to optimize the SLAM and get rid of the noise that brings a lot of inaccuracy in the SLAM algorithm. Those algorithm, such as Kalman and Particle filters, are beyond the scope of Computer vision and are related mainly to signal processing, thus won't be focused on here.
 
 \section{Problem setting}
 
 \subsection{Problem formulation}
 
 With the given setting, we are interested mainly in two parts:
+% 'change of state' kinda ambiguous 
+% collecting landmarks is not a problem
 \begin{enumerate}
     \item Modeling the object's motion. In an abstract setting this can be modeled as $x_{k} = f(x_{k - 1}, u_{k}, w_{k})$, where $x_{k}$ denotes a current position of an object, $x_{k - 1}$ - its previous position, $u_{k}$ - change of its state and $w_{k}$ - noise.  
     \item Collecting the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
@@ -253,7 +255,7 @@ where
 \end{center}
 
 \subsection{Feature detection}
-Firstly let define what a feature is. It is a some pattern in the image which has several proprieties:
+Firstly let define what a feature is. A feature is a some pattern in the image which has the following proprieties:
 \begin{enumerate}
     \item {\bf Repeatability}: The same feature can be found in different images.
     \item {\bf Distinctiveness}: Different features have different expressions.
@@ -265,7 +267,7 @@ Historically there were 3 most popular approaches in algorithms of feature detec
 \begin{enumerate}
     \item {\bf  SIFT} (Scale-Invariant Feature Transform) : is one of the most classic. It is fully consider the changes in illumination, scale, and rotation during the image transformation, but is so calculating expensive, so rarely used in SLAM.
 
-    \item {\bf FAST} : is extremely fast to compute. Has following algorithm:
+    \item {\bf FAST} : is extremely fast to compute with the following algorithm:
     \begin{enumerate}
         \item Select pixel $p$ in the image, assuming its brightness as $I_p$
         \item Set a threshold $T$ (for example, $20\%$ of $I_p$).
@@ -277,11 +279,11 @@ Historically there were 3 most popular approaches in algorithms of feature detec
         \includegraphics[height=5cm]{FAST_example.png}\\[1cm]
         [Fig 1] : Illustration of of FAST algorithm 
     \end{center}
-    This algorithm has an problem, that the detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem. This two problems fix ORB algorithm.
+    The algorithm has a problem. The detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem. This two problems are fixed in ORB algorithm presented below.
     
-    \item {\bf OBR}  (Oriented FAST and Rotated BRIEF) : it solves both mentioned problem of FAST, by adding the description of scale and rotation. In addition, it uses the extremely fast binary descriptor BRIEF.
+    \item {\bf ORB}  (Oriented FAST and Rotated BRIEF) : it solves both mentioned problems of FAST, by adding the description of scale and rotation. In addition, it uses the extremely fast binary descriptor BRIEF.
     \begin{enumerate}
-        \item The scale invariance is achieved by the image pyramid and detect corner points on each layer
+        \item The scale invariance is achieved by the image pyramid and detects corner points on each layer
         \begin{center}
             \includegraphics[height=5cm]{image_piramide.png}\\[1cm]
             [Fig 2] : Use pyramids to match images at different resolutions.
@@ -334,7 +336,7 @@ $x_{1, 2} = K^{-1}p_{1, 2}.$ Then the equation above can be rewritten as $x_{2} 
       p_{2}^{\italic{T}} F p_{1} = 0
     \end{cases}\,.
 \end{equation}
-
+% is essential matrix ?
 It is clear that usage of Essential matrix will make the calculations more accurate, as it uses precomputed calibration parameters for the camera. 
 The process of camera pose estimation can then be summarized as:
 \begin{enumerate}
@@ -368,7 +370,7 @@ From the epipolar constraint: $s_{2} x_{2} = s_{1} R x_{1} + t$. Here $x_{1, 2}$
 which can be solved for $s_{1}$. Geometrically, we seek to find a 3D point on the ray $O_{1}p_{1}$ to make its projection close to $p_{2}$.
 
 \section{Overview of approaches}
-As was mentioned earlier, there exists different types of SLAM algorithms that depend on different type of input video stream. Though as we are focusing particularly on visual SLAM in this work, we would consider different approached to SLAM problem from the perspective of Computer Vision:
+As was mentioned earlier, there exist different types of SLAM algorithms that depend on different types of the input video stream. Though as we are focusing particularly on the visual SLAM in this work, we would consider different approaches to the SLAM problem from the perspective of Computer Vision:
 
 \begin{itemize}
     \item The most popular implementation of visual SLAM is OpenVSLAM available open-source. It utilises notions of gloval and local key frame maps. For the local map it finds points via triangulation and for the global one uses pose-graph optimization. It also contain a global optimization module, which optimizes mathcing against global map. ~\cite{OpenVSLAM}
@@ -402,7 +404,7 @@ As was mentioned earlier, there exists different types of SLAM algorithms that d
 \end{algorithm}
 
 \vskip 1cm
-
+% why this
 The algorithm was implemented in Python via pyopencv. The visualizer of the SLAM was written via OpegGL. For the feature extraction the ORB was used due to its computational efficiency. Feature matching was done in brute-force manner because limitation on the number of features was only several hundreds. Fundamental matrix was then constructed as we lack the camera parameters for the test video. 
 
 \begin{center}
