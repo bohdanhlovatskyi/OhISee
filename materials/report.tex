@@ -133,7 +133,7 @@ With the given setting, we are interested mainly in two parts:
 % collecting landmarks is not a problem
 \begin{enumerate}
     \item Modeling the object's motion. In an abstract setting this can be modeled as $x_{k} = f(x_{k - 1}, u_{k}, w_{k})$, where $x_{k}$ denotes a current position of an object, $x_{k - 1}$ - its previous position, $u_{k}$ - change of its state and $w_{k}$ - noise.  
-    \item Collecting the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
+    \item Gather information about the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
 \end{enumerate}
 
 These two equation summarize the SLAM. For the Euclidean space the motion model can be expressed as the so-called special Euclidean Group: $$SE(3) = \{ T =
