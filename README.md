@@ -1,11 +1,7 @@
 ## SLAM 
 It is not the best SLAM, but it looks and feels as SLAM!
 
-Visualization:
-
-Presentation:
-
-Report:
+Visualization: https://www.youtube.com/watch?v=Gj2gREpRj60
 
 ## Team
 | **Bohdan Hlovatskyi** | **Mykhailo Pasichnyk** | **Stefan Malyk** |
