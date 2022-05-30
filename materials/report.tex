@@ -36,12 +36,16 @@
 \usepackage[utf8x]{inputenc}
 \usepackage{amsmath}
 \usepackage{hyperref}
+\usepackage{minted}
 \usepackage[]{algorithm2e}
 \usepackage{graphicx}
+
 \usepackage{wrapfig}
 
 \usepackage{titleps}
 
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{hyperref}
 
 \usepackage{geometry}
 \geometry{bmargin=2in}
@@ -111,18 +115,18 @@ Bohdan \textsc{Hlovatskyi}, Mykhailo \textsc{Pasichnyk}, Stefan-Yuriy \textsc{Ma
 
 \tableofcontents
 
-\pagebreak
+
 \begin{abstract}
-SLAM or Simultaneous Localization and Mapping - problem of constructing a map of unknown environment simultaneously tracking the object's location. Such algorithms utilize the data obtained from sensors, such as video camera, lidar etc to construct a 3-D model of the nearby objects. They are used in variety of fields: autonomous driving and robots, augmented reality and much more. The algorithms that rely on video data are referred to as Visual SLAM. They obtain the valuable information by means of Computer Vision and different techniques of Signal Processing. We implemented a variation of such algorithm - Monocular SLAM as a part of our linear algebra project. It tracks position of object basing on input video stream from a single camera installed on the object. Source code: ~\cite{GitHub}.
+SLAM or Simultaneous Localization and Mapping - the problem of constructing a map of an unknown environment, simultaneously tracking the object's location. SLAM algorithms utilize the data obtained from sensors, such as video camera, LIDAR etc to construct a 3-D model of the nearby objects and estimate the relative location of the tracking device itself. They are used in variety of fields: autonomous driving, robotics, augmented reality and much more. The algorithms that rely on video data are referred to as Visual SLAM. They obtain information by means of Computer Vision and different techniques of Signal Processing. In the following work we review available approaches along with the implementation of the chosen one by means of Python and \mintinline{python}{pyopencv} as our Linear Algebra course work. Source code: ~\cite{GitHub}.
 \end{abstract}
 
 \section{Introduction}
 
-Visual SLAM is a family of algorithms that solve the problem of Simultaneous Localization and Mapping by means of Computer Vision. Depending on the type of input video stream there are different types of visual SLAM:
+Visual SLAM is a family of algorithms that solve the problem of Simultaneous Localization and Mapping by means of Computer Vision. Depending on the type of input video stream there are different types of Visual SLAM:
 \begin{itemize}
-    \item Monocular SLAM. Such SLAM takes as an input video stream from a single RGB camera. This is the simplest type of SLAM, though it has a lot of limitations, the most important of which is the fact that we can construct environment map only to some scale factor. In other words, we cannot obtain the exact depth of featured points in an environment from single image source. 
-    \item Stereo SLAM. Input video stream comes from two cameras. This allows to get the exact depth of the featured points.
-    \item RGBD. Specific kind of SLAM that gets the input data from RGBD camera - the one that included depth of objects within an image. There are different technologies for such cameras though they are not particularly important for the algorithm itself.
+    \item Monocular SLAM. Such SLAM takes as an input video stream from a single RGB camera. The simplicity of the setup results in low costs, although implies some limitations, one being particularly significant. t Since a single frame is essentially a projection of a real-world scene to an image plane, we can construct environment map only to some scale factor. In other words, we cannot obtain the exact depth of featured points in an environment from a single image source, only approximate one using multiple images and translation movement.
+    \item Stereo SLAM. Input video stream comes from two cameras. Cameras are positioned on some distance, called baseline, value of which is known beforehand. This allows to get the more accurate depth of the featured points. The limitation is that calibration and computation process is difficult usually requiring additional hardware to generate real-time outputs.
+    \item RGBD. Specific kind of SLAM that gets the input data from RGBD camera - the one that included depth of objects within an image. The depth is computed by emitting light and calculating how much does it took for it to return back. However, this technology is relatively new. As a result the range is limited making it not suitable for outdoor use and price is higher, compared to approaches described above.
 \end{itemize}
 
 
@@ -131,16 +135,18 @@ The pipeline of SLAM algorithms will usually look in the following way:
     \includegraphics[height=4cm]{pipeline.png}\\[1cm]
 \end{center}
 
-In this work we are mainly interested in Frontend Visual Odometry, goal of which is to track the object that produces the source data and build non-optimized 3-D cloud map of environment. Backend optimization and loop closing are powerful techniques to optimize the SLAM and get rid of the noise that brings a lot of inaccuracy in the SLAM algorithm. Those algorithm, such as Kalman and Particle filters, are beyond the scope of Computer vision and are related mainly to signal processing, thus won't be focused on here.
+In this work we are mainly interested in Frontend Visual Odometry, goal of which is to track the object that produces the source data and build non-optimized 3-D cloud map of the environment. Backend optimization and loop closing are powerful techniques to optimize the SLAM and get rid of the noise that brings a lot of inaccuracy in the SLAM algorithm. Those algorithm, such as Kalman and Particle filters, are beyond the scope of Computer vision and are related mainly to signal processing, thus won't be focused on here.
 
 \section{Problem setting}
 
 \subsection{Problem formulation}
 
 With the given setting, we are interested mainly in two parts:
+% 'change of state' kinda ambiguous 
+% collecting landmarks is not a problem
 \begin{enumerate}
     \item Modeling the object's motion. In an abstract setting this can be modeled as $x_{k} = f(x_{k - 1}, u_{k}, w_{k})$, where $x_{k}$ denotes a current position of an object, $x_{k - 1}$ - its previous position, $u_{k}$ - change of its state and $w_{k}$ - noise.  
-    \item Collecting the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
+    \item Gather information about the landmarks of a nearby environment. The observed data $z_{k, j}$ will then be described by this equation: $z_{k, j} = f(y_{j}, x_{k}, v_{k, j})$. Here $y_{j}$ - landmark point, $x_{k}$ - its coordinates, $v_{k, j}$ - noise of the observation.
 \end{enumerate}
 
 These two equation summarize the SLAM. For the Euclidean space the motion model can be expressed as the so-called special Euclidean Group: $$SE(3) = \{ T =
@@ -263,7 +269,7 @@ where
 \end{center}
 
 \subsection{Feature detection}
-Firstly let define what a feature is. It is a some pattern in the image which has several proprieties:
+Firstly let define what a feature is. A feature is a some pattern in the image which has the following proprieties:
 \begin{enumerate}
     \item {\bf Repeatability}: The same feature can be found in different images.
     \item {\bf Distinctiveness}: Different features have different expressions.
@@ -275,14 +281,17 @@ Historically there were 3 most popular approaches in algorithms of feature detec
 \begin{enumerate}
     \item {\bf  SIFT} (Scale-Invariant Feature Transform) : is one of the most classic. It is fully consider the changes in illumination, scale, and rotation during the image transformation, but is so calculating expensive, so rarely used in SLAM.
 
+
     \item {\bf FAST} : is extremely fast to compute. To understand its drawbacks, one should understand its algorithm in general. It selects a  pixel $p$ in the image, assuming its brightness as $I_p$. Then it sets a threshold $T$ (for example, $20\%$ of $I_p$). Afterwards it selects the 16 pixels on a circle with a radius of 3 and a center $p$. If there are consecutive $N$ points on the selected circle whose brightness is greater than $I_p+T$ or less than $I_p−T$ , then the central pixel $p$ can be considered a feature point. $N$ usually takes 12, which is {\br FAST-12}. Also $N$ could be 9 / 11 / etc, with respective names of FAST.
     \begin{center}
         \includegraphics[height=3.5cm]{FAST_example.png}\\[1cm]
         [Fig 1] : Illustration of of FAST algorithm 
     \end{center}
+
     Clearly, such algorithm has an problem, that the detector does not have descriptors (fixed pattern, which try to find). Also, as it has fixed the radius of the circle = 3, there is a scaling problem.
     
     \item {\bf OBR}  (Oriented FAST and Rotated BRIEF) : it solves both mentioned problem of FAST, by adding the description of scale and rotation. In addition, it uses the extremely fast binary descriptor BRIEF. The scale invariance is achieved by the image pyramid and detect corner points on each layer. In terms of rotation, we calculate the gray centroid of the image near the feature point. The so-called centroid refers to the gray value of the image block as the center of weight. Then connect the geometric center $O$ and the centroid $C$ of the image block to get a direction vector $\overrightarrow{OC}$, so the direction of the feature point can be defined as: $\theta = arctan(\frac{m_{01}}{m_{10}})$.
+
 \end{enumerate}
 
 Due to the consideration of rotation and scaling, the ORB performs well under translation, rotation, and scaling. Meanwhile, the combination of FAST and BRIEF is very efficient, which makes ORB features very popular in real-time SLAM. Despite this, out tests showed that it is not enough for the requirement of being real-time in our implementation as we developed our SLAM via Python, thus we choose to use combination of improved BRIEF taken from the ORB algorithm and simple feature detection algorithm - Harris corner detection.
@@ -325,7 +334,7 @@ $x_{1, 2} = K^{-1}p_{1, 2}.$ Then the equation above can be rewritten as $x_{2} 
       p_{2}^{\italic{T}} F p_{1} = 0
     \end{cases}\,.
 \end{equation}
-
+% is essential matrix ?
 It is clear that usage of Essential matrix will make the calculations more accurate, as it uses precomputed calibration parameters for the camera. 
 The process of camera pose estimation can then be summarized as:
 \begin{enumerate}
@@ -334,11 +343,15 @@ The process of camera pose estimation can then be summarized as:
 \end{enumerate}
 
 In practice, the Essential matrix is found via Eight-Point algorithm and then $R, t$ are found via SVD and triangulation to get the result that would satisfy the constraints given by the known projections of landmarks.
+Let SVD decomposition of \textbf{E} be:
+$$
+E = U \Sigma V^\top
+$$
 
 \begin{equation}
     \begin{cases}
-        R = U R_{Z(\pm pi/2)} V^{T}\\
-        t = U R_{Z(\pm pi/2)} \Sigma U^{T}
+        R = U R_{Z(\pm  \frac{\pi}{2})} V^{T}\\
+        t = U R_{Z(\pm  \frac{\pi}{2})} \Sigma U^{T}
     \end{cases}\,.
 \end{equation}
 
@@ -362,13 +375,21 @@ which can be solved for $s_{1}$. Geometrically, we seek to find a 3D point on th
 \pagebreak
 
 \section{Overview of approaches}
-As was mentioned earlier, there exists different types of SLAM algorithms that depend on different type of input video stream. Though as we are focusing particularly on visual SLAM in this work, we would consider different approached to SLAM problem from the perspective of Computer Vision:
+As was mentioned earlier, there exist different types of SLAM algorithms that depend on different types of the input video stream. Though as we are focusing particularly on the visual SLAM in this work, we would consider different approaches to the SLAM problem from the perspective of Computer Vision:
 
 \begin{itemize}
     \item The most popular implementation of visual SLAM is OpenVSLAM available open-source. It utilises notions of gloval and local key frame maps. For the local map it finds points via triangulation and for the global one uses pose-graph optimization. It also contain a global optimization module, which optimizes mathcing against global map. ~\cite{OpenVSLAM}
-    \item Interesting to mention is the approach proposed by the ORB-SLAM. The authors use beg-of-words representation of encoded descriptors for each of the feature points in order to optimise the process of feature matching against the stored feature map. It has also a logical continuation as ORB-SLAM 2, which introduced ability to work with stereo input data. ~\cite{ORB_SLAM}
-    \item Speaking of the camera calibration, the classical approach to it is using a chess board' photos from different perspective in order to estimate the intrinsic parameters. ~\cite{Camera_Calibration}. There are also some research conducted in the field of camera self-calibration. ~\cite{Self_Calibration}.
-    \item It is worth mentioning that the research in the SLAM field is being actively maintained. The good example of it is creation of general frameworks such as expressed in the cited papeer. ~\cite{GeneralFramework}.
+    \item Interesting to mention is the approach proposed by the ORB-SLAM \cite{ORB_SLAM}.
+   % don't like the sentence, need to rewrite
+    The project combines some of the fastest and most efficient algorithms resulting in being one of the most complete and reliable solutions. Some of the notable features and advantages are listed below:
+    \begin{itemize}
+        \item Same features are used for multiple tasks e.g tracking, mapping, localization, loop-closing. This approach allows real-time performance without using additional hardware.
+        \item Could be operated in large environments thanks to a covisibility graph, which consists of keyframes as nodes and edges between nodes that have as least 15 map points 
+        \item Real time loop is performed with an Essential Graph, a subgraph of covisibility graph that has at least 100 matching points
+        \item The authors use beg-of-words representation of encoded descriptors for each of the feature points in order to optimise the process of feature matching against the stored feature map.
+    \end{itemize} It has also a logical continuation as ORB-SLAM 2, which introduced ability to work with stereo and RGB-D input data. ~\cite{ORB_SLAM2}
+    \item Speaking of the camera calibration, the classical approach to it is using a chess board photos from different perspective in order to estimate the intrinsic parameters. However the limitation of this approach is the fact that you cannot recover the intrinsic parameters having the video without direct access to the camera itself. Therefore it is worth mention some of the work focusing on the camera calibration using planar scenes. ~\cite{Self_Calibration}. It uses homography-based self-calibration to obtain required parameters. Authors prove that this type of calibration is as accurate as classical approach. Moreover planar scenes could be give  more robust result than when using an arbitrary scene.
+    \item The research in the SLAM field is being actively maintained as technology have seen some success and made big technological companies interested. The problem is that many researches implement their own SLAM structure making it hard to test particular parts of the implementation, compare trade offs of different approaches and testing results. Thus the need of generalized SLAM frameworks emerged to ease research work and ideas exchange. The good example of such framework is GSLAM expressed in the cited paper. ~\cite{GeneralFramework}. It provides open-source, plugin based approach alongside with universal benchmarking solution.
 \end{itemize}
 
 \pagebreak
@@ -428,6 +449,8 @@ Experimentation was conducted on publicly available Kitty dataset~\cite{Kitty}. 
 
 Evaluation was conducted on a small subset of the provided dataset, due to lack of computational resources, to be more specific - {\bf 2011-09-26-drive-0095'}. 
 To measure metrics, we used open-source librbary for SLAM researchers - {\bf evo} ~\cite{Evo}. It contains tools to measure absolute and relative errors, whether matrices that describe poses conform to SE(3) restriction and many more. 
+\vskip 1cm
+The algorithm was implemented in Python via pyopencv. The visualizer of the SLAM was written via OpegGL. For the feature extraction the ORB was used due to its computational efficiency. Feature matching was done in brute-force manner because limitation on the number of features was only several hundreds. Fundamental matrix was then constructed as we lack the camera parameters for the test video. 
 
 \begin{wrapfigure}{l}{0.4\textwidth}
     \centering
@@ -482,20 +505,21 @@ In this work we developed a Monocular SLAM engine which allows us to track objec
 \appendix
 \begin{thebibliography}{10}
 
-\bibitem{GitHub} \texttt{https://github.com/bohdanhlovatskyi/OhISee}
-\bibitem{Testing_Data} \texttt{http://www.cvlibs.net/datasets/kitti/eval_odometry.php}
+\bibitem{GitHub} \url{https://github.com/bohdanhlovatskyi/OhISee}
+\bibitem{Testing_Data} \url{http://www.cvlibs.net/datasets/kitti/eval_odometry.php}
 
-\bibitem{ORB_SLAM} \texttt{http://webdiis.unizar.es/~raulmur/MurMontielTardosTRO15.pdf}
+\bibitem{ORB_SLAM} \url{http://webdiis.unizar.es/~raulmur/MurMontielTardosTRO15.pdf}
+\bibitem{ORB_SLAM2} \url{https://128.84.21.199/pdf/1610.06475.pdf}
 
-\bibitem{Camera_Calibration} \texttt{https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr98-71.pdf} 
+\bibitem{Camera_Calibration} \url{https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr98-71.pdf} 
 
-\bibitem{Self_Calibration} \texttt{https://users.aalto.fi/~kannalj1/publications/wacv2016.pdf}
+\bibitem{Self_Calibration} \url{https://users.aalto.fi/~kannalj1/publications/wacv2016.pdf}
 
-\bibitem{Slambook} \texttt{https://github.com/gaoxiang12/slambook-en}
+\bibitem{Slambook} \url{https://github.com/gaoxiang12/slambook-en}
 
-\bibitem{OpenVSLAM} \texttt{https://arxiv.org/pdf/1910.01122.pdf}
+\bibitem{OpenVSLAM} \url{https://arxiv.org/pdf/1910.01122.pdf}
 
-\bibitem{GeneralFramework} \texttt{https://arxiv.org/pdf/1902.07995.pdf}
+\bibitem{GeneralFramework} \url{https://arxiv.org/pdf/1902.07995.pdf}
 
 \bibitem{Kitty}
 \texttt{http://www.cvlibs.net/datasets/kitti/}
