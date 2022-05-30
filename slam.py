@@ -8,6 +8,7 @@ from vis import Visualizer
 # from harris import harris_feature_detector
 # from essential_estimation import ransac, EssentialMat
 
+
 class PinholeCameraModel:
 
     def __init__(self, focal_length, principal_points) -> None:
@@ -35,6 +36,31 @@ class PinholeCameraModel:
     
     def get_pp(self) -> tuple:
         return (self.cx, self.cy)
+
+class Helpers:
+    @staticmethod
+    def recoverPose(E, _, __):
+        '''
+        used for reference:
+        https://web.archive.org/web/20160418222654/http://isit.u-clermont1.fr/~ab/Classes/DIKU-3DCV2/Handouts/Lecture16.pdf
+        '''
+        W = np.array([[0,-1,0],[1,0,0],[0,0,1]])
+        U, s, V_t = np.linalg.svd()
+        if np.linalg.det(U) < 0:
+            U = - U
+        if np.linalg.det(V_t) < 0:
+            V_t = - V_t
+        R = np.dot(np.dot(U,W), V_t)
+        t = U[:, 2]
+
+        if np.sum(R.diagonal()) < 0:
+            R = np.dot(np.dot(U, W.T), V_t)
+        
+        if t[2] < 0:
+            t = -t
+
+        return None, R, t, None
+
 
 class Extractor:
 
